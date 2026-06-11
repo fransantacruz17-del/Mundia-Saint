@@ -537,8 +537,39 @@ function getFase(d){if(d<='2026-06-28')return'Fase de Grupos';if(d<='2026-07-04'
 // =============================================
 // PUNTOS
 // =============================================
-function getTotalPts(pid){let t=0;for(const mid in STATE.results){const r=STATE.results[mid];if(r&&r.home!==null){const pred=(STATE.predictions[mid]||{})[pid];if(pred!==undefined){const p=calcPoints(pred.home,pred.away,r.home,r.away);if(p!==null)t+=p;}}}return t;}
-function getJornadaPts(pid,dateStr){let t=0;(DAYS[dateStr]||[]).forEach(m=>{const r=STATE.results[m.id];if(r&&r.home!==null){const pred=(STATE.predictions[m.id]||{})[pid];if(pred!==undefined){const p=calcPoints(pred.home,pred.away,r.home,r.away);if(p!==null)t+=p;}}});return t;}
+function getTotalPts(pid){
+  let t=0;
+  for(const mid in STATE.results){
+    const r=STATE.results[mid];
+    if(r&&r.home!==null){
+      const pred=(STATE.predictions[mid]||{})[pid];
+      if(pred!==undefined){const p=calcPoints(pred.home,pred.away,r.home,r.away);if(p!==null)t+=p;}
+    }
+  }
+  // Bonus pts from ruleta
+  if(STATE.bonusPts){
+    Object.keys(STATE.bonusPts).forEach(jornada=>{
+      t+=STATE.bonusPts[jornada][pid]||0;
+    });
+  }
+  return t;
+}
+
+function getJornadaPts(pid,dateStr){
+  let t=0;
+  (DAYS[dateStr]||[]).forEach(m=>{
+    const r=STATE.results[m.id];
+    if(r&&r.home!==null){
+      const pred=(STATE.predictions[m.id]||{})[pid];
+      if(pred!==undefined){const p=calcPoints(pred.home,pred.away,r.home,r.away);if(p!==null)t+=p;}
+    }
+  });
+  // Apply doble
+  if(STATE.doble&&STATE.doble[dateStr]&&STATE.doble[dateStr][pid]) t=t*2;
+  // Add bonus pts for this jornada
+  if(STATE.bonusPts&&STATE.bonusPts[dateStr]) t+=STATE.bonusPts[dateStr][pid]||0;
+  return t;
+}
 
 // =============================================
 // TABS
@@ -1184,11 +1215,14 @@ function selectRuletaPlayer(pid, btn) {
   document.querySelectorAll('#ruletaPlayerBtns .cita-player-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  // Check if already spun today
+  // Check if already spun today — double check: Firebase state + localStorage
   const jornada = getTodayJornada();
   const spins = (STATE.ruleta && STATE.ruleta[jornada]) || {};
-  if (spins[pid]) {
-    document.getElementById('ruletaAlready').textContent = `${PLAYERS.find(p=>p.id===pid).name} ya ha tirado hoy. Premio: ${spins[pid].label}`;
+  const localKey = `ruleta_spun_${jornada}_${pid}`;
+  if (spins[pid] || localStorage.getItem(localKey)) {
+    const player = PLAYERS.find(p=>p.id===pid);
+    const premio = spins[pid] ? spins[pid].label : 'ya tirado';
+    document.getElementById('ruletaAlready').textContent = `🔒 ${player.name} ya ha tirado hoy. Premio: ${premio}`;
     document.getElementById('ruletaSpinBtn').disabled = true;
   } else {
     document.getElementById('ruletaAlready').textContent = '';
@@ -1267,13 +1301,16 @@ async function spinRuleta() {
     return;
   }
 
-  // Check already spun
+  // Check already spun — double check Firebase + localStorage
   const jornada = getTodayJornada();
   const spins = (STATE.ruleta && STATE.ruleta[jornada]) || {};
-  if (spins[ruletaSelectedPlayer]) {
-    showToast('Ya has tirado hoy', true); return;
+  const localKey = `ruleta_spun_${jornada}_${ruletaSelectedPlayer}`;
+  if (spins[ruletaSelectedPlayer] || localStorage.getItem(localKey)) {
+    showToast('Ya has tirado hoy 🔒', true); return;
   }
 
+  // Lock immediately in localStorage so double-click doesn't work
+  localStorage.setItem(localKey, '1');
   document.getElementById('ruletaSpinBtn').disabled = true;
 
   // Pick random prize (weighted: doble y porno less likely)
@@ -1376,32 +1413,7 @@ function renderRuletaHistory() {
     }).join('');
 }
 
-// Hook bonus pts and doble into scoring
-const _origGetTotalPts = getTotalPts;
-function getTotalPts(pid) {
-  let base = _origGetTotalPts(pid);
-  // Add bonus pts from ruleta across all jornadas
-  if (STATE.bonusPts) {
-    Object.keys(STATE.bonusPts).forEach(jornada => {
-      base += STATE.bonusPts[jornada][pid] || 0;
-    });
-  }
-  return base;
-}
-
-const _origGetJornadaPts = getJornadaPts;
-function getJornadaPts(pid, dateStr) {
-  let base = _origGetJornadaPts(pid, dateStr);
-  // Apply doble
-  if (STATE.doble && STATE.doble[dateStr] && STATE.doble[dateStr][pid]) {
-    base = base * 2;
-  }
-  // Add bonus pts for this jornada
-  if (STATE.bonusPts && STATE.bonusPts[dateStr]) {
-    base += STATE.bonusPts[dateStr][pid] || 0;
-  }
-  return base;
-}
+// Puntos con bonuses ya integrados en getTotalPts y getJornadaPts
 
 
 // =============================================
@@ -1588,7 +1600,14 @@ function openCitaModal(dateStr, playerId) {
 window.openCitaModal = openCitaModal;
 
 document.getElementById('citaConfirm').onclick = async function() {
-  const player = PLAYERS.find(p => p.id === citaModalPlayerId);
+  // Guardar referencias antes de cerrar el modal
+  const playerId = citaModalPlayerId;
+  const dateStr = citaModalDate;
+  if (!playerId || !dateStr) { showToast('Error: recarga la página', true); return; }
+
+  const player = PLAYERS.find(p => p.id === playerId);
+  if (!player) return;
+
   if (document.getElementById('citaCode').value !== player.code) {
     document.getElementById('citaCode').classList.add('error');
     document.getElementById('citaCodeError').classList.add('show');
@@ -1598,16 +1617,24 @@ document.getElementById('citaConfirm').onclick = async function() {
   if (!text && !citaSelectedGifUrl && !citaImgBase64) {
     showToast('Escribe algo o añade un GIF/imagen', true); return;
   }
-  if (!STATE.citas) STATE.citas = {};
-  if (!STATE.citas[citaModalDate]) STATE.citas[citaModalDate] = {};
-  STATE.citas[citaModalDate][citaModalPlayerId] = {
-    text: text,
-    gifUrl: citaSelectedGifUrl || null,
-    imgData: citaImgBase64 || null,
-    ts: Date.now(),
-    likes: (STATE.citas[citaModalDate][citaModalPlayerId] || {}).likes || {}
-  };
+
+  // Guardar gif/img antes de cerrar
+  const gifUrl = citaSelectedGifUrl || null;
+  const imgData = citaImgBase64 || null;
+  const existingLikes = ((STATE.citas || {})[dateStr] || {})[playerId]?.likes || {};
+
   closeCitaModal();
+
+  if (!STATE.citas) STATE.citas = {};
+  if (!STATE.citas[dateStr]) STATE.citas[dateStr] = {};
+  STATE.citas[dateStr][playerId] = {
+    text: text,
+    gifUrl: gifUrl,
+    imgData: imgData,
+    ts: Date.now(),
+    likes: existingLikes
+  };
+
   await saveToFirebase();
   renderAll();
   renderFaltada();
