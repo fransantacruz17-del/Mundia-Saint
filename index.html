@@ -1204,6 +1204,10 @@ dbRef.on('value',snapshot=>{
   const data=snapshot.val()||{};
   STATE.predictions=data.predictions||{};
   STATE.results=data.results||{};
+  STATE.citas=data.citas||{};
+  STATE.ruleta=data.ruleta||{};
+  STATE.bonusPts=data.bonusPts||{};
+  STATE.doble=data.doble||{};
   setSyncDot('online');
   renderAll();
   renderDeudas();
@@ -1332,8 +1336,14 @@ function getDailyPornoLink() {
 }
 
 function getTodayJornada() {
-  const today = new Date().toISOString().slice(0,10);
-  return today; // use date as jornada key for ruleta
+  // Usar fecha actual como clave — la tirada se bloquea por fecha calendario (medianoche)
+  return new Date().toISOString().slice(0,10);
+}
+
+function yaHaTiradoHoy(pid) {
+  const jornada = getTodayJornada();
+  const spins = (STATE.ruleta && STATE.ruleta[jornada]) || {};
+  return !!spins[pid];
 }
 
 let ruletaSelectedPlayer = null;
@@ -1373,14 +1383,13 @@ function selectRuletaPlayer(pid, btn) {
   document.querySelectorAll('#ruletaPlayerBtns .cita-player-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  // Check if already spun today — double check: Firebase state + localStorage
+  // Check if already spun today — check Firebase state (source of truth)
   const jornada = getTodayJornada();
   const spins = (STATE.ruleta && STATE.ruleta[jornada]) || {};
-  const localKey = `ruleta_spun_${jornada}_${pid}`;
-  if (spins[pid] || localStorage.getItem(localKey)) {
+  if (yaHaTiradoHoy(pid)) {
     const player = PLAYERS.find(p=>p.id===pid);
     const premio = spins[pid] ? spins[pid].label : 'ya tirado';
-    document.getElementById('ruletaAlready').textContent = `🔒 ${player.name} ya ha tirado hoy. Premio: ${premio}`;
+    document.getElementById('ruletaAlready').textContent = '🔒 ' + player.name + ' ya ha tirado hoy. Premio: ' + premio;
     document.getElementById('ruletaSpinBtn').disabled = true;
   } else {
     document.getElementById('ruletaAlready').textContent = '';
@@ -1459,16 +1468,11 @@ async function spinRuleta() {
     return;
   }
 
-  // Check already spun — double check Firebase + localStorage
+  // Check already spun — Firebase es la fuente de verdad
   const jornada = getTodayJornada();
-  const spins = (STATE.ruleta && STATE.ruleta[jornada]) || {};
-  const localKey = `ruleta_spun_${jornada}_${ruletaSelectedPlayer}`;
-  if (spins[ruletaSelectedPlayer] || localStorage.getItem(localKey)) {
+  if (yaHaTiradoHoy(ruletaSelectedPlayer)) {
     showToast('Ya has tirado hoy 🔒', true); return;
   }
-
-  // Lock immediately in localStorage so double-click doesn't work
-  localStorage.setItem(localKey, '1');
   document.getElementById('ruletaSpinBtn').disabled = true;
 
   // Pick random prize (weighted: doble y porno less likely)
