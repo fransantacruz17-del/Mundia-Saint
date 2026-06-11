@@ -129,6 +129,22 @@
   .toast.error-toast{background:var(--red);}
   ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--dark);}::-webkit-scrollbar-thumb{background:var(--green);border-radius:3px;}
   footer{text-align:center;padding:18px;color:var(--gray);font-size:.68rem;border-top:1px solid rgba(255,255,255,.05);margin-top:10px;}
+  .deuda-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px;}
+  .deuda-card{background:var(--panel2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,.06);text-align:center;}
+  .deuda-card.deuda-cero{border-color:rgba(255,215,0,.35);}
+  .deuda-card.deuda-alta{border-color:rgba(192,57,43,.35);}
+  .deuda-name{font-weight:700;font-size:.9rem;margin-bottom:8px;color:var(--white);}
+  .deuda-euro{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;color:var(--red);}
+  .deuda-euro.cero{color:var(--gold);}
+  .deuda-label{font-size:.65rem;color:var(--gray);margin-top:3px;}
+  .deuda-detalle{margin-top:16px;}
+  .deuda-detalle-title{font-size:.68rem;color:var(--gray);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+  .deuda-detalle-table{width:100%;border-collapse:collapse;font-size:.75rem;}
+  .deuda-detalle-table th{color:var(--gray);font-weight:600;padding:4px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);}
+  .deuda-detalle-table td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--white);}
+  .deuda-detalle-table tr:last-child td{border-bottom:none;}
+  .deuda-detalle-table td.euro-cell{color:var(--red);font-weight:600;}
+  .deuda-detalle-table td.euro-cell.cero{color:var(--gold);}
   @media(max-width:500px){.pronosticos-grid{grid-template-columns:1fr 1fr;}.clas-table{gap:5px;}.clas-player{min-width:110px;padding:5px 9px;}.normas-grid,.premios-grid{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
@@ -151,6 +167,7 @@
       <button class="tab-btn active" onclick="switchTab('clasificacion',this)">🏅 Clasificación</button>
       <button class="tab-btn" onclick="switchTab('normas',this)">📋 Normas</button>
       <button class="tab-btn" onclick="switchTab('premios',this)">💰 Premios</button>
+      <button class="tab-btn" onclick="switchTab('deudas',this)">💸 Deudas</button>
     </div>
     <div class="tab-panel active" id="tab-clasificacion">
       <div class="clas-section">
@@ -165,7 +182,17 @@
         <div class="clas-table" id="clasJornada"></div>
       </div>
     </div>
-    <div class="tab-panel" id="tab-normas">
+    <div class="tab-panel" id="tab-deudas">
+      <div style="font-size:.72rem;color:var(--gray);margin-bottom:12px;">Deuda acumulada por jornada. En caso de empate, se reparte la suma de las posiciones entre los empatados.</div>
+      <div class="deuda-grid" id="deudaGrid"></div>
+      <div class="deuda-detalle">
+        <div class="deuda-detalle-title">📋 Desglose por jornada</div>
+        <table class="deuda-detalle-table">
+          <thead><tr><th>Jornada</th><th>Michael</th><th>Bauti</th><th>Adri</th><th>Fran</th></tr></thead>
+          <tbody id="deudaTabla"></tbody>
+        </table>
+      </div>
+    </div>
       <div class="normas-grid">
         <div class="norma-card"><div class="norma-pts g3">3</div><div><div class="norma-title">Resultado exacto</div><div class="norma-desc">Aciertas el marcador con los goles exactos de cada equipo</div></div></div>
         <div class="norma-card"><div class="norma-pts g1">1</div><div><div class="norma-title">Solo el ganador</div><div class="norma-desc">Aciertas quién gana (o empate) pero no el marcador exacto</div></div></div>
@@ -235,10 +262,10 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Firebase SDK -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<!-- Firebase SDK compat (compatible con todos los navegadores) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
 
 // =============================================
 // FIREBASE CONFIG
@@ -253,8 +280,8 @@ const firebaseConfig = {
   appId: "1:756338761608:web:901f31b7dd565f58c4e43d"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 // =============================================
 // JUGADORES
@@ -417,6 +444,7 @@ function switchTab(name,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
+  if(name==='deudas') renderDeudas();
 }
 window.switchTab=switchTab;
 
@@ -538,21 +566,117 @@ function setSyncDot(state){
 }
 
 // =============================================
-// FIREBASE — ESCUCHAR CAMBIOS EN TIEMPO REAL
+// DEUDAS
 // =============================================
-const dbRef=ref(db,'mundial');
-onValue(dbRef,snapshot=>{
+// Precios por posición (1º=0, 2º=0.20, 3º=0.30, 4º=0.50)
+const PRECIO_POS=[0, 0.20, 0.30, 0.50];
+
+function calcDeudaJornada(dateStr){
+  // Calcula cuánto paga cada jugador en esa jornada
+  // Obtener puntos de cada jugador en esa jornada
+  const pts=PLAYERS.map(p=>({id:p.id,pts:getJornadaPts(p.id,dateStr)}));
+
+  // Verificar si hay al menos un resultado en esa jornada
+  const matches=DAYS[dateStr]||[];
+  const hayResultados=matches.some(m=>{
+    const r=STATE.results[m.id];
+    return r&&r.home!==null;
+  });
+  if(!hayResultados) return null; // jornada sin resultados aún
+
+  // Ordenar de mayor a menor puntos
+  const sorted=[...pts].sort((a,b)=>b.pts-a.pts);
+
+  // Calcular pagos con empates
+  const pagos={};
+  let i=0;
+  while(i<sorted.length){
+    // Buscar cuántos tienen el mismo puntaje
+    let j=i;
+    while(j<sorted.length && sorted[j].pts===sorted[i].pts) j++;
+    // Posiciones i..j-1 empatan → sumar precios y dividir
+    let sumaPrecio=0;
+    for(let k=i;k<j;k++) sumaPrecio+=PRECIO_POS[k];
+    const precioRepartido=sumaPrecio/(j-i);
+    for(let k=i;k<j;k++) pagos[sorted[k].id]=precioRepartido;
+    i=j;
+  }
+  return pagos;
+}
+
+function calcDeudaTotal(){
+  const totales={};
+  PLAYERS.forEach(p=>{totales[p.id]=0;});
+  SDATES.forEach(dateStr=>{
+    const pagos=calcDeudaJornada(dateStr);
+    if(pagos) PLAYERS.forEach(p=>{totales[p.id]+=pagos[p.id]||0;});
+  });
+  return totales;
+}
+
+function renderDeudas(){
+  const totales=calcDeudaTotal();
+  const grid=document.getElementById('deudaGrid');
+  const tbody=document.getElementById('deudaTabla');
+  if(!grid||!tbody)return;
+
+  // Tarjetas totales
+  grid.innerHTML=PLAYERS.map(p=>{
+    const t=totales[p.id];
+    const esCero=t===0;
+    return`<div class="deuda-card ${esCero?'deuda-cero':'deuda-alta'}">
+      <div class="deuda-name">${p.name}</div>
+      <div class="deuda-euro ${esCero?'cero':''}">${t.toFixed(2).replace('.',',')} €</div>
+      <div class="deuda-label">${esCero?'¡Sin deuda! 🥇':'deuda acumulada'}</div>
+    </div>`;
+  }).join('');
+
+  // Tabla desglose
+  let rows='';
+  let jNum=0;
+  SDATES.forEach(dateStr=>{
+    jNum++;
+    const pagos=calcDeudaJornada(dateStr);
+    if(!pagos) return; // sin resultados, omitir
+    const isFinal=dateStr==='2026-07-19';
+    const label=isFinal?`J${jNum} Final`:dateStr==='2026-07-18'?`J${jNum} 3º`:`J${jNum}`;
+    rows+=`<tr>
+      <td>${label}</td>
+      ${PLAYERS.map(p=>{
+        const v=pagos[p.id]||0;
+        return`<td class="euro-cell ${v===0?'cero':''}">${v.toFixed(2).replace('.',',')}€</td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  // Fila total
+  rows+=`<tr style="border-top:2px solid rgba(255,255,255,.15);font-weight:700;">
+    <td style="color:var(--gold)">TOTAL</td>
+    ${PLAYERS.map(p=>{
+      const t=totales[p.id];
+      return`<td class="euro-cell ${t===0?'cero':''}" style="font-size:.85rem;">${t.toFixed(2).replace('.',',')}€</td>`;
+    }).join('')}
+  </tr>`;
+
+  tbody.innerHTML=rows||`<tr><td colspan="5" style="color:var(--gray);text-align:center;padding:12px;">Aún no hay jornadas con resultados</td></tr>`;
+}
+
+window.renderDeudas=renderDeudas;
+// =============================================
+const dbRef=db.ref('mundial');
+dbRef.on('value',snapshot=>{
   const data=snapshot.val()||{};
   STATE.predictions=data.predictions||{};
   STATE.results=data.results||{};
   setSyncDot('online');
   renderAll();
-},{error:()=>setSyncDot('offline')});
+  renderDeudas();
+},()=>setSyncDot('offline'));
 
 async function saveToFirebase(){
   setSyncDot('syncing');
   try{
-    await set(ref(db,'mundial'),STATE);
+    await db.ref('mundial').set(STATE);
     setSyncDot('online');
   }catch(e){
     setSyncDot('offline');
