@@ -1750,71 +1750,52 @@ function openCitaModal(dateStr, playerId) {
 }
 window.openCitaModal = openCitaModal;
 
-document.getElementById('citaConfirm').onclick = async function() {
-  try {
-    const playerId = citaModalPlayerId;
-    const dateStr = citaModalDate;
-    if (!playerId || !dateStr) { showToast('Error: abre el comentario otra vez', true); return; }
+// publicarCita definido arriba como window.publicarCita
+document.getElementById('citaCancel').onclick = function(){ closeCitaModal(); };
+document.getElementById('citaModal').onclick = function(e){ if(e.target===this) closeCitaModal(); };
+function closeCitaModal(){
+  document.getElementById('citaModal').classList.remove('active');
+  citaModalDate=null; citaModalPlayerId=null;
+  citaSelectedGifUrl=null; citaImgBase64=null;
+}
+window.closeCitaModal=closeCitaModal;
 
-    const player = PLAYERS.find(function(p){ return p.id === playerId; });
-    if (!player) { showToast('Error de jugador', true); return; }
-
-    const codeInput = document.getElementById('citaCode');
-    if (!codeInput || codeInput.value !== player.code) {
-      if(codeInput) codeInput.classList.add('error');
-      const errEl = document.getElementById('citaCodeError');
-      if(errEl) errEl.classList.add('show');
+window.publicarCita = async function(){
+  try{
+    var playerId=citaModalPlayerId;
+    var dateStr=citaModalDate;
+    if(!playerId||!dateStr){showToast('Abre el comentario otra vez',true);return;}
+    var player=PLAYERS.filter(function(p){return p.id===playerId;})[0];
+    if(!player){showToast('Error de jugador',true);return;}
+    var codeEl=document.getElementById('citaCode');
+    var errEl=document.getElementById('citaCodeError');
+    if(!codeEl||codeEl.value!==player.code){
+      if(codeEl)codeEl.classList.add('error');
+      if(errEl)errEl.classList.add('show');
       return;
     }
-
-    const textEl = document.getElementById('citaText');
-    const text = textEl ? textEl.value.trim() : '';
-    if (!text && !citaSelectedGifUrl && !citaImgBase64) {
-      showToast('Escribe algo primero', true); return;
+    var textEl=document.getElementById('citaText');
+    var text=textEl?textEl.value.trim():'';
+    if(!text&&!citaSelectedGifUrl&&!citaImgBase64){showToast('Escribe algo primero',true);return;}
+    var gifUrl=citaSelectedGifUrl||null;
+    var imgData=citaImgBase64||null;
+    var existingLikes={};
+    if(STATE.citas&&STATE.citas[dateStr]&&STATE.citas[dateStr][playerId]&&STATE.citas[dateStr][playerId].likes){
+      existingLikes=STATE.citas[dateStr][playerId].likes;
     }
-
-    const gifUrl = citaSelectedGifUrl || null;
-    const imgData = citaImgBase64 || null;
-
-    // Get existing likes safely without optional chaining
-    let existingLikes = {};
-    if (STATE.citas && STATE.citas[dateStr] && STATE.citas[dateStr][playerId] && STATE.citas[dateStr][playerId].likes) {
-      existingLikes = STATE.citas[dateStr][playerId].likes;
-    }
-
-    // Save data
-    if (!STATE.citas) STATE.citas = {};
-    if (!STATE.citas[dateStr]) STATE.citas[dateStr] = {};
-    STATE.citas[dateStr][playerId] = {
-      text: text,
-      gifUrl: gifUrl,
-      imgData: imgData,
-      ts: Date.now(),
-      likes: existingLikes
-    };
-
-    // Clear modal state
-    citaModalDate = null;
-    citaModalPlayerId = null;
-    citaSelectedGifUrl = null;
-    citaImgBase64 = null;
-    document.getElementById('citaModal').classList.remove('active');
-
+    if(!STATE.citas)STATE.citas={};
+    if(!STATE.citas[dateStr])STATE.citas[dateStr]={};
+    STATE.citas[dateStr][playerId]={text:text,gifUrl:gifUrl,imgData:imgData,ts:Date.now(),likes:existingLikes};
+    closeCitaModal();
     await saveToFirebase();
     renderAll();
     renderFaltada();
-    showToast('💜 Cita de ' + player.name + ' publicada!');
-  } catch(err) {
-    showToast('Error al publicar: ' + err.message, true);
-    console.error('citaConfirm error:', err);
+    showToast('💜 Cita de '+player.name+' publicada!');
+  }catch(err){
+    showToast('Error: '+err.message,true);
+    console.error(err);
   }
 };
-document.getElementById('citaCancel').onclick = closeCitaModal;
-document.getElementById('citaModal').onclick = function(e) { if (e.target === this) closeCitaModal(); };
-function closeCitaModal() {
-  document.getElementById('citaModal').classList.remove('active');
-  citaModalDate = null; citaModalPlayerId = null;
-}
 
 // ---- EMOJI ----
 function toggleEmojiPicker() {
@@ -1950,8 +1931,8 @@ setSyncDot('syncing');
     <textarea class="cita-textarea" id="citaText" placeholder="Escribe tu cita del día... sé creativo 😈"></textarea>
     <img id="citaImgPreview" class="cita-img-preview"/>
     <div class="modal-btns">
-      <button class="btn-confirm" style="background:#9b59b6;" id="citaConfirm">Publicar cita 💜</button>
-      <button class="btn-cancel" id="citaCancel">Cancelar</button>
+      <button class="btn-confirm" style="background:#9b59b6;" onclick="publicarCita()">Publicar cita 💜</button>
+      <button class="btn-cancel" onclick="closeCitaModal()">Cancelar</button>
     </div>
   </div>
 </div>
