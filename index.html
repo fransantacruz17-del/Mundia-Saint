@@ -303,8 +303,15 @@
       </div>
       <!-- POR JORNADAS DESPLEGABLE -->
       <div class="clas-section" style="margin-top:14px;">
-        <div class="clas-subtitle">📅 Desglose por Jornada</div>
-        <div id="clasJornadasDetalle"></div>
+        <div class="clas-jornada-block">
+          <div class="clas-jornada-header" onclick="toggleClasJornada('allJornadas')">
+            <span class="clas-jornada-title">📅 Ver desglose por jornadas</span>
+            <span class="clas-jornada-toggle" id="ctgl-allJornadas">▼</span>
+          </div>
+          <div class="clas-jornada-body" id="allJornadas" style="display:none;padding:0;">
+            <div id="clasJornadasDetalle"></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="tab-panel" id="tab-deudas">
@@ -1750,9 +1757,68 @@ function openCitaModal(dateStr, playerId) {
 }
 window.openCitaModal = openCitaModal;
 
-// publicarCita definido arriba como window.publicarCita
-document.getElementById('citaCancel').onclick = function(){ closeCitaModal(); };
-document.getElementById('citaModal').onclick = function(e){ if(e.target===this) closeCitaModal(); };
+// publicarCita - se registra cuando el DOM está listo
+document.addEventListener('DOMContentLoaded', function(){
+  // Botón publicar cita
+  var btnPublicar = document.getElementById('citaConfirmBtn');
+  if(btnPublicar){
+    btnPublicar.addEventListener('click', function(){
+      var playerId = citaModalPlayerId;
+      var dateStr = citaModalDate;
+      if(!playerId || !dateStr){ showToast('Abre el comentario otra vez', true); return; }
+      var player = null;
+      for(var i=0; i<PLAYERS.length; i++){ if(PLAYERS[i].id===playerId){ player=PLAYERS[i]; break; } }
+      if(!player){ showToast('Error de jugador', true); return; }
+      var codeEl = document.getElementById('citaCode');
+      var errEl = document.getElementById('citaCodeError');
+      if(!codeEl || codeEl.value !== player.code){
+        if(codeEl) codeEl.classList.add('error');
+        if(errEl) errEl.classList.add('show');
+        return;
+      }
+      var textEl = document.getElementById('citaText');
+      var text = textEl ? textEl.value.trim() : '';
+      if(!text && !citaSelectedGifUrl && !citaImgBase64){ showToast('Escribe algo primero', true); return; }
+      var gifUrl = citaSelectedGifUrl || null;
+      var imgData = citaImgBase64 || null;
+      var existingLikes = {};
+      if(STATE.citas && STATE.citas[dateStr] && STATE.citas[dateStr][playerId] && STATE.citas[dateStr][playerId].likes){
+        existingLikes = STATE.citas[dateStr][playerId].likes;
+      }
+      if(!STATE.citas) STATE.citas = {};
+      if(!STATE.citas[dateStr]) STATE.citas[dateStr] = {};
+      STATE.citas[dateStr][playerId] = { text:text, gifUrl:gifUrl, imgData:imgData, ts:Date.now(), likes:existingLikes };
+      var playerName = player.name;
+      closeCitaModal();
+      saveToFirebase().then(function(){
+        renderAll();
+        renderFaltada();
+        showToast('💜 Cita de ' + playerName + ' publicada!');
+      }).catch(function(err){ showToast('Error al guardar: ' + err.message, true); });
+    });
+  }
+
+  // Botón cancelar cita
+  var btnCancelar = document.getElementById('citaCancelBtn');
+  if(btnCancelar){ btnCancelar.addEventListener('click', function(){ closeCitaModal(); }); }
+
+  // Click fuera del modal
+  var citaModalEl = document.getElementById('citaModal');
+  if(citaModalEl){ citaModalEl.addEventListener('click', function(e){ if(e.target===this) closeCitaModal(); }); }
+
+  // Emojis
+  var emojiRow = document.getElementById('emojiPickerRow');
+  if(emojiRow){
+    var emojis = ['⚽','🏆','🔥','💀','😂','🤣','😭','😤','🤦','🎯','👏','🫡','🤡','💩','🙈','🎉','🥳','😈','👿','🤮','🥶','🤯','😎','🙄','😴','🤓','👀','❤️','💜','🖤','💥','⚡','🍕','🍺','🤌','✌️','🤙','👎','👍','💪','🚩'];
+    emojiRow.innerHTML = emojis.map(function(e){ return '<span class="emoji-btn" style="cursor:pointer;font-size:1.2rem;padding:2px;">'+e+'</span>'; }).join('');
+    emojiRow.addEventListener('click', function(e){
+      if(e.target.classList.contains('emoji-btn')){
+        var ta = document.getElementById('citaText');
+        if(ta){ ta.value += e.target.textContent; ta.focus(); }
+      }
+    });
+  }
+});
 function closeCitaModal(){
   document.getElementById('citaModal').classList.remove('active');
   citaModalDate=null; citaModalPlayerId=null;
@@ -1760,42 +1826,7 @@ function closeCitaModal(){
 }
 window.closeCitaModal=closeCitaModal;
 
-window.publicarCita = async function(){
-  try{
-    var playerId=citaModalPlayerId;
-    var dateStr=citaModalDate;
-    if(!playerId||!dateStr){showToast('Abre el comentario otra vez',true);return;}
-    var player=PLAYERS.filter(function(p){return p.id===playerId;})[0];
-    if(!player){showToast('Error de jugador',true);return;}
-    var codeEl=document.getElementById('citaCode');
-    var errEl=document.getElementById('citaCodeError');
-    if(!codeEl||codeEl.value!==player.code){
-      if(codeEl)codeEl.classList.add('error');
-      if(errEl)errEl.classList.add('show');
-      return;
-    }
-    var textEl=document.getElementById('citaText');
-    var text=textEl?textEl.value.trim():'';
-    if(!text&&!citaSelectedGifUrl&&!citaImgBase64){showToast('Escribe algo primero',true);return;}
-    var gifUrl=citaSelectedGifUrl||null;
-    var imgData=citaImgBase64||null;
-    var existingLikes={};
-    if(STATE.citas&&STATE.citas[dateStr]&&STATE.citas[dateStr][playerId]&&STATE.citas[dateStr][playerId].likes){
-      existingLikes=STATE.citas[dateStr][playerId].likes;
-    }
-    if(!STATE.citas)STATE.citas={};
-    if(!STATE.citas[dateStr])STATE.citas[dateStr]={};
-    STATE.citas[dateStr][playerId]={text:text,gifUrl:gifUrl,imgData:imgData,ts:Date.now(),likes:existingLikes};
-    closeCitaModal();
-    await saveToFirebase();
-    renderAll();
-    renderFaltada();
-    showToast('💜 Cita de '+player.name+' publicada!');
-  }catch(err){
-    showToast('Error: '+err.message,true);
-    console.error(err);
-  }
-};
+// cita guardada via DOMContentLoaded listener arriba
 
 // ---- EMOJI ----
 function toggleEmojiPicker() {
@@ -1804,24 +1835,7 @@ function toggleEmojiPicker() {
 }
 window.toggleEmojiPicker = toggleEmojiPicker;
 
-document.addEventListener('click', function(e) {
-  if (e.target.classList.contains('emoji-btn')) {
-    const ta = document.getElementById('citaText');
-    const pos = ta.selectionStart;
-    const val = ta.value;
-    ta.value = val.slice(0, pos) + e.target.textContent + val.slice(pos);
-    ta.selectionStart = ta.selectionEnd = pos + e.target.textContent.length;
-    ta.focus();
-  }
-});
-
-// Init emoji buttons
-document.addEventListener('DOMContentLoaded', function() {
-  const row = document.getElementById('emojiPickerRow');
-  if (!row) return;
-  const emojis = ['⚽','🏆','🔥','💀','😂','🤣','😭','😤','🤦','🎯','👏','🫡','🤡','💩','🙈','🎉','🥳','😈','👿','🤮','🥶','🤯','😎','🫠','🙄','😴','🤓','🥴','👀','🫶','❤️','💜','🖤','💥','⚡','🌪️','🎭','🃏','🎲','🍕','🍺','🤌','✌️','🤙','👎','👍','💪','🫵','🚩'];
-  row.innerHTML = emojis.map(e => `<span class="emoji-btn">${e}</span>`).join('');
-});
+// emojis registrados en DOMContentLoaded arriba
 
 // ---- GIF SEARCH (usando Tenor API gratuita) ----
 let gifTimer = null;
@@ -1931,8 +1945,8 @@ setSyncDot('syncing');
     <textarea class="cita-textarea" id="citaText" placeholder="Escribe tu cita del día... sé creativo 😈"></textarea>
     <img id="citaImgPreview" class="cita-img-preview"/>
     <div class="modal-btns">
-      <button class="btn-confirm" style="background:#9b59b6;" onclick="publicarCita()">Publicar cita 💜</button>
-      <button class="btn-cancel" onclick="closeCitaModal()">Cancelar</button>
+      <button class="btn-confirm" style="background:#9b59b6;" id="citaConfirmBtn">Publicar cita 💜</button>
+      <button class="btn-cancel" id="citaCancelBtn">Cancelar</button>
     </div>
   </div>
 </div>
