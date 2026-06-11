@@ -141,7 +141,29 @@
   .stats-bar-fill.home{background:var(--green-mid);}
   .stats-bar-fill.draw{background:var(--gold-dark);}
   .stats-bar-fill.away{background:var(--red);}
-  .stats-bar-count{width:24px;font-weight:700;color:var(--white);}grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px;}
+  .stats-bar-count{width:24px;font-weight:700;color:var(--white);}
+  .clas-jornada-block{margin-bottom:8px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.06);}
+  .clas-jornada-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--panel2);cursor:pointer;user-select:none;}
+  .clas-jornada-header:hover{background:#253829;}
+  .clas-jornada-title{font-family:'Oswald',sans-serif;font-size:.85rem;color:var(--green-light);font-weight:600;}
+  .clas-jornada-toggle{color:var(--gray);font-size:.8rem;transition:transform .3s;}
+  .clas-jornada-toggle.open{transform:rotate(180deg);}
+  .clas-jornada-body{background:var(--panel);padding:10px 12px;}
+  .clas-jornada-table{width:100%;border-collapse:collapse;font-size:.75rem;}
+  .clas-jornada-table th{color:var(--gray);font-weight:600;padding:4px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08);}
+  .clas-jornada-table th:first-child{text-align:left;}
+  .clas-jornada-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:center;}
+  .clas-jornada-table td:first-child{text-align:left;color:var(--white);}
+  .clas-jornada-table tr:last-child td{border-bottom:none;}
+  .pts-cell-3{color:var(--gold);font-weight:700;}
+  .pts-cell-1{color:#5dade2;font-weight:600;}
+  .pts-cell-0{color:var(--gray);}
+  .pts-cell-bonus{color:#e056fd;font-weight:700;}
+  .pts-cell-doble{color:#e67e22;font-size:.6rem;}
+  .pts-total-row td{background:rgba(255,255,255,.04);font-weight:700;border-top:2px solid rgba(255,255,255,.1)!important;color:var(--green-light)!important;}
+  .acum-row td{color:var(--gold)!important;font-style:italic;font-size:.7rem;}
+  .clas-general-row{display:flex;align-items:center;gap:8px;background:var(--panel2);border-radius:7px;padding:8px 12px;border:1px solid rgba(255,255,255,.06);margin-bottom:6px;}
+  .clas-general-row.leader{border-color:var(--gold);}
   .deuda-card{background:var(--panel2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,.06);text-align:center;}
   .deuda-card.deuda-cero{border-color:rgba(255,215,0,.35);}
   .deuda-card.deuda-alta{border-color:rgba(192,57,43,.35);}
@@ -274,16 +296,15 @@
       <button class="tab-btn" onclick="switchTab('deudas',this)">💸 Deudas</button>
     </div>
     <div class="tab-panel active" id="tab-clasificacion">
+      <!-- GENERAL -->
       <div class="clas-section">
-        <div class="clas-subtitle">⚽ Clasificación General</div>
-        <div class="clas-table" id="clasGeneral"></div>
+        <div class="clas-subtitle">⚽ Clasificación General Acumulada</div>
+        <div id="clasGeneral"></div>
       </div>
-      <div class="clas-section" style="margin-top:10px;">
-        <div class="jornada-select-row">
-          <label>Clasificación por jornada:</label>
-          <select class="jornada-sel" id="jornadaSel" onchange="renderClasJornada()"></select>
-        </div>
-        <div class="clas-table" id="clasJornada"></div>
+      <!-- POR JORNADAS DESPLEGABLE -->
+      <div class="clas-section" style="margin-top:14px;">
+        <div class="clas-subtitle">📅 Desglose por Jornada</div>
+        <div id="clasJornadasDetalle"></div>
       </div>
     </div>
     <div class="tab-panel" id="tab-deudas">
@@ -586,33 +607,161 @@ window.switchTab=switchTab;
 // =============================================
 // CLASIFICACION
 // =============================================
+function getBonusPtsTotal(pid){
+  let t=0;
+  if(STATE.bonusPts) Object.keys(STATE.bonusPts).forEach(d=>{ t+=STATE.bonusPts[d][pid]||0; });
+  return t;
+}
+function getDobleJornadas(pid){
+  const j=[];
+  if(STATE.doble) Object.keys(STATE.doble).forEach(d=>{ if(STATE.doble[d][pid]) j.push(JMAP[d]||d); });
+  return j;
+}
+
 function renderClasGeneral(){
   const el=document.getElementById('clasGeneral');
-  const r=PLAYERS.map(p=>({...p,pts:getTotalPts(p.id)})).sort((a,b)=>b.pts-a.pts);
-  el.innerHTML=r.map((p,i)=>{const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';return`<div class="clas-player ${i===0?'leader':''}"><div class="clas-pos ${pc}">${i+1}º</div><div class="clas-name">${p.name}</div><div><div class="clas-pts">${p.pts}</div><div class="clas-pts-label">pts</div></div></div>`;}).join('');
+  if(!el) return;
+  const ranked=PLAYERS.map(p=>({...p,pts:getTotalPts(p.id)})).sort((a,b)=>b.pts-a.pts);
+  const posClass=['gold','silver','bronze',''];
+  el.innerHTML=ranked.map((p,i)=>{
+    const pc=posClass[i]||'';
+    const bonus=getBonusPtsTotal(p.id);
+    const dobles=getDobleJornadas(p.id);
+    const extras=[];
+    if(bonus>0) extras.push(`<span style="font-size:.6rem;color:#e056fd;">+${bonus.toFixed(1)}🎰</span>`);
+    if(dobles.length) extras.push(`<span style="font-size:.6rem;color:#e67e22;">x2 J${dobles.join(',')}</span>`);
+    const ptsDisp=p.pts%1===0?p.pts:p.pts.toFixed(1);
+    return`<div class="clas-general-row ${i===0?'leader':''}">
+      <div class="clas-pos ${pc}">${i+1}º</div>
+      <div class="clas-name">${p.name} ${extras.join(' ')}</div>
+      <div style="text-align:right;"><div class="clas-pts">${ptsDisp}</div><div class="clas-pts-label">pts totales</div></div>
+    </div>`;
+  }).join('');
 }
 
-function buildJornadaSelect(){
-  const sel=document.getElementById('jornadaSel');
-  sel.innerHTML='';
-  SDATES.forEach(d=>{
-    const j=JMAP[d];
-    const opt=document.createElement('option');
-    opt.value=d;
-    opt.textContent=d==='2026-07-19'?`Jornada ${j} – GRAN FINAL`:d==='2026-07-18'?`Jornada ${j} – 3er Puesto`:`Jornada ${j} – ${formatDateES(d)}`;
-    sel.appendChild(opt);
+function renderClasJornadasDetalle(){
+  const el=document.getElementById('clasJornadasDetalle');
+  if(!el) return;
+  const acum={};
+  PLAYERS.forEach(p=>{ acum[p.id]=0; });
+  let html='';
+
+  SDATES.forEach(dateStr=>{
+    const jNum=JMAP[dateStr];
+    const matches=DAYS[dateStr]||[];
+    const isFinal=dateStr==='2026-07-19';
+    const jLabel=isFinal?`J${jNum} – GRAN FINAL 🏆`:dateStr==='2026-07-18'?`J${jNum} – 3er Puesto`:`J${jNum} · ${formatDateES(dateStr)}`;
+
+    const hasActivity=matches.some(m=>{
+      const r=STATE.results[m.id];
+      if(r&&r.home!==null) return true;
+      return PLAYERS.some(p=>(STATE.predictions[m.id]||{})[p.id]!==undefined);
+    });
+    const hasBonus=PLAYERS.some(p=>((STATE.bonusPts&&STATE.bonusPts[dateStr]&&STATE.bonusPts[dateStr][p.id])||0)>0);
+    // Show ALL jornadas always
+
+    let matchRows='';
+    const jornadaMatchPts={};
+    PLAYERS.forEach(p=>{ jornadaMatchPts[p.id]=0; });
+
+    matches.forEach(m=>{
+      const r=STATE.results[m.id];
+      const hasResult=r&&r.home!==null;
+      const anyPred=PLAYERS.some(p=>(STATE.predictions[m.id]||{})[p.id]!==undefined);
+      if(!hasResult&&!anyPred) return;
+      const matchLabel=(m.away?`${m.home} vs ${m.away}`:m.home).substring(0,22);
+      const cells=PLAYERS.map(p=>{
+        const pred=(STATE.predictions[m.id]||{})[p.id];
+        if(!pred) return`<td class="pts-cell-0">—</td>`;
+        if(!hasResult) return`<td style="color:var(--accent);font-size:.68rem;">${pred.home}-${pred.away}</td>`;
+        const pts=calcPoints(pred.home,pred.away,r.home,r.away);
+        jornadaMatchPts[p.id]+=(pts||0);
+        const cls=pts===3?'pts-cell-3':pts===1?'pts-cell-1':'pts-cell-0';
+        return`<td class="${cls}">${pred.home}-${pred.away} <span style="font-size:.6rem;">${pts===3?'⭐':pts===1?'✓':'✗'}</span></td>`;
+      }).join('');
+      const resLabel=hasResult?`<span style="color:var(--gold);font-size:.62rem;">${r.home}-${r.away}</span>`:`<span style="color:var(--gray);font-size:.62rem;">Pte.</span>`;
+      matchRows+=`<tr><td style="font-size:.68rem;">${matchLabel}<br>${resLabel}</td>${cells}</tr>`;
+    });
+
+    // Calc jornada totals applying doble on match pts then adding bonus
+    const jornadaTotals={};
+    PLAYERS.forEach(p=>{
+      let t=jornadaMatchPts[p.id];
+      if(STATE.doble&&STATE.doble[dateStr]&&STATE.doble[dateStr][p.id]) t=t*2;
+      const b=(STATE.bonusPts&&STATE.bonusPts[dateStr]&&STATE.bonusPts[dateStr][p.id])||0;
+      t+=b;
+      jornadaTotals[p.id]=t;
+    });
+
+    // Bonus row
+    if(hasBonus){
+      const bonusCells=PLAYERS.map(p=>{
+        const b=(STATE.bonusPts&&STATE.bonusPts[dateStr]&&STATE.bonusPts[dateStr][p.id])||0;
+        return b>0?`<td class="pts-cell-bonus">+${b.toFixed(1)}🎰</td>`:`<td class="pts-cell-0">—</td>`;
+      }).join('');
+      matchRows+=`<tr><td style="font-size:.68rem;color:#e056fd;">🎰 Bonus Ruleta</td>${bonusCells}</tr>`;
+    }
+
+    // Doble row
+    const hasDoble=STATE.doble&&STATE.doble[dateStr]&&Object.keys(STATE.doble[dateStr]).length>0;
+    if(hasDoble){
+      const dobleCells=PLAYERS.map(p=>{
+        const d=STATE.doble&&STATE.doble[dateStr]&&STATE.doble[dateStr][p.id];
+        return d?`<td class="pts-cell-doble">🔥x2</td>`:`<td class="pts-cell-0">—</td>`;
+      }).join('');
+      matchRows+=`<tr><td style="font-size:.68rem;color:#e67e22;">🔥 Puntos x2</td>${dobleCells}</tr>`;
+    }
+
+    // If no rows yet, show pending message
+    if(!matchRows){
+      matchRows=`<tr><td colspan="${PLAYERS.length+1}" style="color:var(--gray);font-style:italic;font-size:.72rem;text-align:center;padding:8px;">Sin pronósticos aún — ¡los partidos empiezan el ${formatDateES(dateStr)}!</td></tr>`;
+    }
+
+    // Total jornada
+    const totalCells=PLAYERS.map(p=>{
+      acum[p.id]+=jornadaTotals[p.id];
+      const v=jornadaTotals[p.id];
+      return`<td>${v%1===0?v:v.toFixed(1)}</td>`;
+    }).join('');
+    matchRows+=`<tr class="pts-total-row"><td>TOTAL J${jNum}</td>${totalCells}</tr>`;
+
+    // Acumulado
+    const acumCells=PLAYERS.map(p=>{
+      const v=acum[p.id];
+      return`<td style="color:var(--gold);font-size:.7rem;">${v%1===0?v:v.toFixed(1)}</td>`;
+    }).join('');
+    matchRows+=`<tr><td style="font-size:.65rem;color:var(--gray);">Acum.</td>${acumCells}</tr>`;
+
+    const bodyId=`cjb-${dateStr}`;
+    html+=`<div class="clas-jornada-block">
+      <div class="clas-jornada-header" onclick="toggleClasJornada('${bodyId}')">
+        <span class="clas-jornada-title">${jLabel}</span>
+        <span class="clas-jornada-toggle" id="ctgl-${bodyId}">▼</span>
+      </div>
+      <div class="clas-jornada-body" id="${bodyId}" style="display:none;">
+        <table class="clas-jornada-table">
+          <thead><tr><th>Partido</th>${PLAYERS.map(p=>`<th>${p.name}</th>`).join('')}</tr></thead>
+          <tbody>${matchRows}</tbody>
+        </table>
+      </div>
+    </div>`;
   });
-  const today=new Date().toISOString().slice(0,10);
-  const past=SDATES.filter(d=>d<=today);
-  sel.value=past.length?past[past.length-1]:SDATES[0];
+
+  el.innerHTML=html||`<div style="color:var(--gray);font-size:.78rem;padding:10px;">Aún no hay partidos con actividad</div>`;
 }
 
-function renderClasJornada(){
-  const dateStr=document.getElementById('jornadaSel').value;
-  const el=document.getElementById('clasJornada');
-  const r=PLAYERS.map(p=>({...p,pts:getJornadaPts(p.id,dateStr)})).sort((a,b)=>b.pts-a.pts);
-  el.innerHTML=r.map((p,i)=>{const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';return`<div class="clas-player ${i===0?'leader':''}"><div class="clas-pos ${pc}">${i+1}º</div><div class="clas-name">${p.name}</div><div><div class="clas-pts">${p.pts}</div><div class="clas-pts-label">pts</div></div></div>`;}).join('');
+function toggleClasJornada(bodyId){
+  const el=document.getElementById(bodyId);
+  const tgl=document.getElementById('ctgl-'+bodyId);
+  if(!el||!tgl) return;
+  const isHidden=el.style.display==='none';
+  el.style.display=isHidden?'block':'none';
+  tgl.classList.toggle('open',isHidden);
 }
+window.toggleClasJornada=toggleClasJornada;
+
+function buildJornadaSelect(){ renderClasJornadasDetalle(); }
+function renderClasJornada(){ renderClasJornadasDetalle(); }
 window.renderClasJornada=renderClasJornada;
 
 // =============================================
@@ -1052,6 +1201,8 @@ dbRef.on('value',snapshot=>{
   renderAll();
   renderDeudas();
   renderFaltada();
+  renderClasGeneral();
+  renderClasJornadasDetalle();
 },()=>setSyncDot('offline'));
 
 async function saveToFirebase(){
@@ -1600,45 +1751,63 @@ function openCitaModal(dateStr, playerId) {
 window.openCitaModal = openCitaModal;
 
 document.getElementById('citaConfirm').onclick = async function() {
-  // Guardar referencias antes de cerrar el modal
-  const playerId = citaModalPlayerId;
-  const dateStr = citaModalDate;
-  if (!playerId || !dateStr) { showToast('Error: recarga la página', true); return; }
+  try {
+    const playerId = citaModalPlayerId;
+    const dateStr = citaModalDate;
+    if (!playerId || !dateStr) { showToast('Error: abre el comentario otra vez', true); return; }
 
-  const player = PLAYERS.find(p => p.id === playerId);
-  if (!player) return;
+    const player = PLAYERS.find(function(p){ return p.id === playerId; });
+    if (!player) { showToast('Error de jugador', true); return; }
 
-  if (document.getElementById('citaCode').value !== player.code) {
-    document.getElementById('citaCode').classList.add('error');
-    document.getElementById('citaCodeError').classList.add('show');
-    return;
+    const codeInput = document.getElementById('citaCode');
+    if (!codeInput || codeInput.value !== player.code) {
+      if(codeInput) codeInput.classList.add('error');
+      const errEl = document.getElementById('citaCodeError');
+      if(errEl) errEl.classList.add('show');
+      return;
+    }
+
+    const textEl = document.getElementById('citaText');
+    const text = textEl ? textEl.value.trim() : '';
+    if (!text && !citaSelectedGifUrl && !citaImgBase64) {
+      showToast('Escribe algo primero', true); return;
+    }
+
+    const gifUrl = citaSelectedGifUrl || null;
+    const imgData = citaImgBase64 || null;
+
+    // Get existing likes safely without optional chaining
+    let existingLikes = {};
+    if (STATE.citas && STATE.citas[dateStr] && STATE.citas[dateStr][playerId] && STATE.citas[dateStr][playerId].likes) {
+      existingLikes = STATE.citas[dateStr][playerId].likes;
+    }
+
+    // Save data
+    if (!STATE.citas) STATE.citas = {};
+    if (!STATE.citas[dateStr]) STATE.citas[dateStr] = {};
+    STATE.citas[dateStr][playerId] = {
+      text: text,
+      gifUrl: gifUrl,
+      imgData: imgData,
+      ts: Date.now(),
+      likes: existingLikes
+    };
+
+    // Clear modal state
+    citaModalDate = null;
+    citaModalPlayerId = null;
+    citaSelectedGifUrl = null;
+    citaImgBase64 = null;
+    document.getElementById('citaModal').classList.remove('active');
+
+    await saveToFirebase();
+    renderAll();
+    renderFaltada();
+    showToast('💜 Cita de ' + player.name + ' publicada!');
+  } catch(err) {
+    showToast('Error al publicar: ' + err.message, true);
+    console.error('citaConfirm error:', err);
   }
-  const text = document.getElementById('citaText').value.trim();
-  if (!text && !citaSelectedGifUrl && !citaImgBase64) {
-    showToast('Escribe algo o añade un GIF/imagen', true); return;
-  }
-
-  // Guardar gif/img antes de cerrar
-  const gifUrl = citaSelectedGifUrl || null;
-  const imgData = citaImgBase64 || null;
-  const existingLikes = ((STATE.citas || {})[dateStr] || {})[playerId]?.likes || {};
-
-  closeCitaModal();
-
-  if (!STATE.citas) STATE.citas = {};
-  if (!STATE.citas[dateStr]) STATE.citas[dateStr] = {};
-  STATE.citas[dateStr][playerId] = {
-    text: text,
-    gifUrl: gifUrl,
-    imgData: imgData,
-    ts: Date.now(),
-    likes: existingLikes
-  };
-
-  await saveToFirebase();
-  renderAll();
-  renderFaltada();
-  showToast(`💜 Cita de ${player.name} publicada!`);
 };
 document.getElementById('citaCancel').onclick = closeCitaModal;
 document.getElementById('citaModal').onclick = function(e) { if (e.target === this) closeCitaModal(); };
