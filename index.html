@@ -129,7 +129,19 @@
   .toast.error-toast{background:var(--red);}
   ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--dark);}::-webkit-scrollbar-thumb{background:var(--green);border-radius:3px;}
   footer{text-align:center;padding:18px;color:var(--gray);font-size:.68rem;border-top:1px solid rgba(255,255,255,.05);margin-top:10px;}
-  .deuda-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px;}
+  .curiosidad{background:rgba(255,215,0,.06);border-left:3px solid var(--gold-dark);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:10px;font-size:.78rem;color:#ccd;line-height:1.5;font-style:italic;}
+  .curiosidad-icon{font-size:1rem;margin-right:6px;}
+  .stats-pron{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.08);}
+  .stats-pron-title{font-size:.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+  .stats-bar-wrap{display:flex;flex-direction:column;gap:5px;}
+  .stats-bar-row{display:flex;align-items:center;gap:8px;font-size:.72rem;}
+  .stats-bar-label{width:70px;color:var(--gray);text-align:right;white-space:nowrap;}
+  .stats-bar-track{flex:1;height:10px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;position:relative;}
+  .stats-bar-fill{height:100%;border-radius:5px;transition:width .5s;}
+  .stats-bar-fill.home{background:var(--green-mid);}
+  .stats-bar-fill.draw{background:var(--gold-dark);}
+  .stats-bar-fill.away{background:var(--red);}
+  .stats-bar-count{width:24px;font-weight:700;color:var(--white);}grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px;}
   .deuda-card{background:var(--panel2);border-radius:10px;padding:16px;border:1px solid rgba(255,255,255,.06);text-align:center;}
   .deuda-card.deuda-cero{border-color:rgba(255,215,0,.35);}
   .deuda-card.deuda-alta{border-color:rgba(192,57,43,.35);}
@@ -498,6 +510,116 @@ function startCountdown(matchId,lockDT,elId){
 }
 
 // =============================================
+// DATOS CURIOSOS HUMORÍSTICOS POR PARTIDO
+// =============================================
+const CURIOSIDADES={
+  p1:"México vs Sudáfrica: dos países con más cosas en común de lo que parece — en ambos el fútbol es religión y la corrupción es deporte nacional. Dicen que el ganador de este partido se proclamará campeón moral de los continentes olvidados por los bookmakers. Vamos, que vale más echarse una buena siesta que ver este partido... aunque igual te sorprende.",
+  p2:"Corea del Sur vs Rep. Checa: los coreanos llevan meses estudiando al rival con inteligencia artificial, mientras los checos se han preparado a base de pilsner. Si gana la IA sobre la cerveza, el mundo tal y como lo conocemos habrá terminado.",
+  p3:"Canadá vs Bosnia-Herzegovina: el país del hockey sobre hielo contra los balcánicos más dramáticos del mundo. Bosnia marcará un gol y llorará de emoción. Canadá marcará un gol y se disculpará educadamente.",
+  p4:"Estados Unidos vs Paraguay: los yanquis juegan en casa, lo cual les dará una ventaja enorme... o no, porque la mitad del estadio serán paraguayos que llevan 20 años viviendo en Miami. Va a ser raro animar al país del que tienes el pasaporte contra el país del que tienes el corazón.",
+  p5:"Catar vs Suiza: el país que compró el Mundial 2022 contra el país que guarda su dinero. Si gana Catar, sospechamos que algo huele mal. Si gana Suiza, será el resultado más neutro y aburrido de la historia, como ellos.",
+  p6:"Brasil vs Marruecos: el samba contra la muralla. Brasil vendrá con el mejor fútbol del mundo y Marruecos vendrá con los mejores pulmones del mundo. Ponle que acaba 1-0 después de 90 minutos de espectáculo y 90 minutos de sufrimiento.",
+  p7:"Haití vs Escocia: el caos caribeño contra el caos celta. Dos selecciones que han sufrido más que nadie para llegar aquí y que van a dejarse la piel. No será bonito, pero será apasionante. Como todo lo que sale mal con mucho entusiasmo.",
+  p8:"Australia vs Turquía: los canguros contra los otomanos. Australia viene con energía de equipo que no tiene nada que perder y Turquía viene con Arda Güler intentando ser el mejor del mundo. Si los australianos ganan, habrá barbacoas en Sydney durante una semana.",
+  p9:"Alemania vs Curazao: esto es básicamente un entrenamiento con público para Alemania. Curazao es una isla de 150.000 personas cuya mayor exportación es el licor azul. Esperamos un marcador vergonzoso y esperamos que Curazao se lo tome con calma y se tome un cóctel.",
+  p10:"Países Bajos vs Japón: el fútbol total holandés contra la máquina japonesa. Los holandeses son más altos, los japoneses son más rápidos. En algún punto del espacio-tiempo se equilibra todo. Partido muy táctico que acabará siendo un gol de cabeza de un holandés de 2 metros.",
+  p11:"Costa de Marfil vs Ecuador: África Occidental contra América del Sur. Dos selecciones con talento, pasión y un entrenador al que nadie escucha. Garantizado al menos un gol de falta que nadie esperaba y una expulsión que todos esperaban.",
+  p12:"Suecia vs Túnez: los suecos, que solo se animan cuando marcan un gol, contra los tunecinos, que se animan desde el calentamiento. Diferencia cultural abismal. Coincidencia cultural: los dos equipos tienen uniforme amarillo y los árbitros van a flipar.",
+  p13:"España vs Cabo Verde: la Roja contra las islas del Atlántico que tienen el mejor Carnaval del mundo. España debería ganar con comodidad, pero como somos así, llegaremos al 85' con empate a cero y nos meterán un gol al contraataque. Luego nos clasificaremos igual.",
+  p14:"Bélgica vs Egipto: los Diablos Rojos, siempre candidatos, siempre decepcionantes, contra los faraones, siempre con Salah y siempre dependiendo de Salah. Si Salah tiene un día bueno, Egipto gana. Si Salah tiene un día normal, Bélgica gana. Si Lukaku aparece de la nada, todos pierden.",
+  p15:"Arabia Saudita vs Uruguay: los petrodólares contra los gauchos. Arabia Saudita ya tumbó a Argentina en Qatar... pero aquí Uruguay viene con Valverde y las ganas de demostrar que el fútbol sudamericano no es solo Argentina y Brasil. Partido trampa para los que apuestan.",
+  p16:"Irán vs Nueva Zelanda: dos países que geográficamente no tienen nada que ver y futbolísticamente tampoco. Irán lleva años en el Mundial sin pasar de grupos. Nueva Zelanda lleva años intentando convencer al mundo de que el rugby no es lo único que saben hacer.",
+  p17:"Francia vs Senegal: la madre patria colonial contra la excolonia con el mejor talento africano. Los senegaleses tienen a Mané y las ganas de hacer historia. Los franceses tienen a Mbappé y el ego de toda una nación. Va a ser épico o va a ser un drama. Probablemente las dos cosas.",
+  p18:"Irak vs Noruega: Haaland entra en el chat. Noruega básicamente es Haaland más diez personas que le pasan balones. Irak es un equipo que lleva décadas sobreviviendo a todo. Si alguien puede motivar a un equipo para que pare a Haaland, es alguien que ha vivido lo que han vivido ellos.",
+  p19:"Argentina vs Argelia: los campeones del mundo contra los leones del desierto. Messi ya no está, pero Argentina sigue siendo Argentina. Argelia llega con hambre y con Mahrez. El nombre es parecido pero el fútbol es muy diferente. O eso espera Argentina.",
+  p20:"Austria vs Jordania: Europa central versus Oriente Medio. Austria juega bien pero siempre parece que le falta algo. Jordania ha llegado al Mundial y ya ha ganado. Cualquier cosa que pase aquí será un regalo para el fútbol.",
+  p21:"Portugal vs RD Congo: Cristiano... bueno, ya no. Portugal post-CR7 contra Congo, que tiene jugadores en medio mundo pero no juegan juntos nunca. Puede pasar cualquier cosa, que es la magia del fútbol o la pesadilla del seleccionador.",
+  p22:"Inglaterra vs Croacia: otra vez. Siempre estos dos. Inglaterra siempre con el trauma del penalti y Croacia siempre con Modric llevando el balón como si tuviera 25 años aunque tenga 74. Garantizado al menos un inglés llorando en las gradas.",
+  p23:"Ghana vs Panamá: dos equipos que se classificaron y ya no saben muy bien qué hacer aquí. Ghana viene con talento y Panamá viene con ilusión. El que tenga más hambre ese día se lleva los tres puntos y una anécdota para contar a los nietos.",
+  p24:"Uzbekistán vs Colombia: la tierra del algodón contra la tierra del café. Colombia tiene a Luis Díaz y a James Rodríguez cuando está de humor. Uzbekistán tiene a un país de 36 millones de personas que nunca había visto un Mundial tan de cerca. Sorpresa garantizada.",
+  p25:"Rep. Checa vs Sudáfrica: segunda jornada, los dos ya saben cómo va esto. Los checos necesitan puntos y los sudafricanos necesitan un milagro. Spoiler: los milagros en el fútbol existen, pero solo los martes en Champions League.",
+  p26:"Suiza vs Bosnia-Herzegovina: los suizos, perfectos en todo, contra los bosnios, apasionados en todo. El choque entre el orden y el caos. Si gana Bosnia habrá fuegos artificiales en Sarajevo. Si gana Suiza habrá un comunicado oficial muy bien redactado.",
+  p27:"Canadá vs Catar: el país del frío polar contra el país del calor extremo. Se van a reunir en América del Norte con temperatura ideal para el fútbol. Canadá juega en casa, básicamente. Catar intentará comprar... el resultado con esfuerzo y ganas.",
+  p28:"México vs Corea del Sur: el Tri buscando la gloria de siempre, siempre en cuartos. Los coreanos buscan llegar a semis otra vez como en 2002. Habrá más mariachis en las gradas que en la Plaza Mayor de Madrid un 15 de septiembre.",
+  p29:"Estados Unidos vs Australia: el país que llama al fútbol soccer contra el país donde el fútbol compite con cinco deportes más. Los dos equipos tienen jugadores buenos. Los dos equipos tienen fama de irregulares. Va a ser el partido más raro de ver del torneo.",
+  p30:"Escocia vs Marruecos: los de las faldas de cuadros contra los leones del Atlas. Marruecos llegó a semis en Qatar. Escocia llegó al Mundial, que ya es suficiente motivo de celebración nacional. Nadie en Glasgow apostará a que gana Escocia. Y eso les motivará.",
+  p31:"Brasil vs Haití: el gigante contra el valiente. Brasil puede permitirse no marcar en el primer cuarto de hora. Haití no puede permitirse respirar. Pero el fútbol a veces hace cosas raras y si Haití aguanta el primer cuarto de hora... nada, les meterán tres igual.",
+  p32:"Turquía vs Paraguay: dos selecciones con nombres que son difíciles de pronunciar para los comentaristas extranjeros y con jugadores que son imposibles de seguir en vivo. Partido físico, intenso y con al menos una tarjeta roja que nadie entenderá.",
+  p33:"Países Bajos vs Suecia: la batalla del norte. Los holandeses con su fútbol de posición y los suecos con su pragmatismo nórdico. Si empatan, los dos equipos se irán a cenar salmón y a hablar de lo bien que viven en sus países.",
+  p34:"Alemania vs Costa de Marfil: los alemanes necesitan este partido para demostrar que han vuelto. La Mannschaft post-Müller, post-Neuer, post-todo intenta reconstruirse. Costa de Marfil llega con Zaha y ganas de hacer historia. Probablemente gane Alemania 3-1 y nadie recuerde el partido.",
+  p35:"Ecuador vs Curazao: Sudamérica contra el Caribe. Ecuador viene a ganar puntos serios. Curazao viene a disfrutar del momento porque probablemente no vuelvan a un Mundial en décadas. Respeto total para los del licor azul.",
+  p36:"Túnez vs Japón: el Norte de África contra el Extremo Oriente. Los dos tienen aficiones increíbles que limpian las gradas después del partido. Los dos tienen selecciones que sorprenden cuando nadie las ve venir. Partido bonito para un domingo por la mañana.",
+  p37:"España vs Arabia Saudita: la Roja en modo serio esta vez. Arabia Saudita viene con sus petrodólares y Benzema jubilado. España viene con el tiki-taka renovado y los nervios de siempre. Si España no gana esto, alguien va a llorar en la RFEF.",
+  p38:"Bélgica vs Irán: los belgas buscando redimirse de sus fracasos eternos. Irán buscando hacer historia. De alguna manera, estos partidos siempre son más interesantes de lo que parecen en el papel. Alguien marcará un gol absurdo en el minuto 87.",
+  p39:"Uruguay vs Cabo Verde: la garra charrúa contra la alegría caribeña. Uruguay te machaca tácticamente. Cabo Verde te sorprende con individualidades. Es como ver una pelea entre un pitbull y un delfín. El pitbull probablemente gane pero el delfín lo pasa mejor.",
+  p40:"Nueva Zelanda vs Egipto: los All Whites contra los Faraones. Sin Salah esto sería otro partido. Con Salah es otro partido igualmente pero con más nervios. Nueva Zelanda sigue demostrando que son mucho más que rugbistas.",
+  p41:"Argentina vs Austria: los campeones del mundo en modo crucero. Austria, sorprendentemente sólida desde hace años. Pero Argentina tiene algo que Austria no tiene: la memoria muscular de ser los mejores. Aunque sin Messi eso ya pesa menos.",
+  p42:"Francia vs Irak: los Bleus deberían ganar esto cómodamente. Irak es la sorpresa romántica del torneo. Si Francia pierde este partido, la Torre Eiffel se apagará por vergüenza nacional y Mbappé se irá al palco a hablar con su representante.",
+  p43:"Noruega vs Senegal: Haaland vs Mané. No hace falta decir más. Bueno sí: los dos equipos tienen más estrellas que el resto de sus grupos juntos. Si empatan aquí nadie se sorprenderá y todo el mundo dirá que lo sabía.",
+  p44:"Jordania vs Argelia: Oriente Medio contra el Magreb. Dos culturas futbolísticas apasionadas. Dos aficiones que viajan miles de kilómetros para animar. El partido probablemente sea más aburrido que el viaje de los seguidores.",
+  p45:"Portugal vs Uzbekistán: Portugal post-CR7 intenta convencer al mundo de que puede ganar sin él. Uzbekistán intenta convencer al mundo de que existe. Los dos lo conseguirán a medias.",
+  p46:"Inglaterra vs Ghana: los inventores del fútbol contra los africanos que lo reinventaron. Inglaterra lleva pensando que va a ganar un torneo desde 1966. Ghana lleva esperando su momento desde 2010 cuando casi llegan a semis. El karma juega para los dos.",
+  p47:"Panamá vs Croacia: los panameños, ilusionados y organizados, contra los croatas eternos finalistas. Modric va a cumplir más años en el campo que en el banquillo. El partido más cinematográfico del grupo.",
+  p48:"Colombia vs RD Congo: América Latina vs África Central. Luis Díaz en estado de gracia versus los guerreros congoleños. Partido físico, intenso, lleno de talento. El que lo vea sin conocer los equipos pensará que es una final.",
+  p49:"Suiza vs Canadá: los dos equipos más sobrevalorados del grupo. Los suizos siempre llegan lejos sin que nadie entienda cómo. Los canadienses por fin están en el Mundial y quieren quedarse. Aburrido sobre el papel, emocionante en el descuento.",
+  p50:"Bosnia vs Catar: Bosnia viene a ganar, Catar viene a sobrevivir. Catar en Qatar ganó porque compró el torneo. Catar en Norteamérica no puede comprar el clima ni el ambiente. Partido para los que aman el fútbol de los que no tienen nada que perder.",
+  p51:"Escocia vs Brasil: la mayor injusticia del sorteo. Escocia se despertó un día y le tocó Brasil. Los escoceses van a luchar, van a correr, van a morir en el campo. Y aun así perderán 3-0 con la elegancia característica del fútbol brasileño.",
+  p52:"Marruecos vs Haití: los leones contra los valientes. Marruecos viene a confirmar que Qatar no fue un accidente. Haití viene a demostrar que el fútbol puede ser más grande que los problemas de un país. Partido con mucha carga emocional.",
+  p53:"Rep. Checa vs México: El Tri en modo dramático, como siempre. México necesita ganar para pasar, como siempre. Los aficionados mexicanos llenarán el estadio, como siempre. El portero mexicano salvará tres milagros, como siempre. Y luego en cuartos caerán, como siempre.",
+  p54:"Sudáfrica vs Corea del Sur: última jornada de grupo, los dos necesitan algo. El estadio será un manicomio. Habrá al menos tres situaciones donde nadie sabe quién pasa y los comentaristas empezarán a hacer cálculos de gol average que nadie entiende.",
+  p55:"Curazao vs Costa de Marfil: última jornada. Curazao necesita un milagro. Costa de Marfil necesita no fastidiarla. Historia del fútbol: Costa de Marfil la fastidia y Curazao marca el gol de su vida. O no. Pero sería bonito.",
+  p56:"Ecuador vs Alemania: partido que decide quién pasa. Alemania necesita ganar sí o sí. Ecuador necesita no perder de goleada. Si Alemania empata, habrá crisis nacional, rueda de prensa tensa y titular de Bild que pondrá en duda toda la civilización occidental.",
+  p57:"Japón vs Suecia: la batalla por el pase a octavos. Los japoneses corriendo sin parar durante 90 minutos. Los suecos intentando no hacer el ridículo. El que aguante la presión pasa. El que no, llora en el vestuario.",
+  p58:"Túnez vs Países Bajos: Túnez ya eliminada mentalmente pero con dignidad. Países Bajos con un ojo en el marcador del otro partido. El fútbol tiene estos momentos surrealistas donde todos miran el móvil en el minuto 80.",
+  p59:"Turquía vs Estados Unidos: la OTAN enfrentada en el campo de fútbol. Geopolíticamente complicado, futbolísticamente interesante. Si gana Turquía, Erdogan se apuntará el mérito. Si gana Estados Unidos, Biden... bueno, el que sea presidente dirá algo.",
+  p60:"Paraguay vs Australia: dos equipos que necesitan el resultado más que el espectáculo. Partido feo, disputado, con mucho corazón y poco talento. Exactamente el tipo de partido que decides ver y luego te arrepientes y lo que miras el móvil.",
+  p61:"Noruega vs Francia: si Haaland y Mbappé aparecen en el mismo partido, los demás 20 jugadores son extras de una película de acción. Dos monstruos del fútbol moderno jugando en equipos que dependen de ellos demasiado. El que falle su estrella, pierde.",
+  p62:"Senegal vs Irak: Mané contra todos. Irak con el corazón. Senegal con la cabeza. El partido más inesperadamente bonito de la jornada. Habrá un gol en el minuto 93 que dejará a todo el mundo boquiabierto.",
+  p63:"Cabo Verde vs Arabia Saudita: ¿quién pasa con España? Los isleños atlánticos contra los del desierto árabe. Partido de supervivencia con todo en juego. Las matemáticas futbolísticas en su máximo esplendor.",
+  p64:"Uruguay vs España: la garra charrúa contra la Roja. Uruguay siempre busca la épica y España siempre intenta evitarla con el balón. Si Uruguay gana, todos los uruguayos en el mundo se acostarán a las 6 de la mañana sin importarles nada.",
+  p65:"Egipto vs Irán: Oriente Medio y Norte de África se reencuentran. Con Salah o sin él, Egipto tiene identidad. Irán tiene disciplina. El que meta el primer gol tiene muchas papeletas de ganar porque defensivamente los dos son muy sólidos.",
+  p66:"Nueva Zelanda vs Bélgica: los kiwis contra los eternos decepcionantes. Bélgica siempre tiene la generación dorada y nunca gana nada. Nueva Zelanda nunca ha tenido generación dorada y tampoco gana nada. Por lo menos tienen algo en común.",
+  p67:"Panamá vs Inglaterra: los panameños ya se enfrentaron a Inglaterra en Rusia 2018 y perdieron 6-1. Han mejorado mucho. Pero Inglaterra también. Aunque siendo ingleses, lo de mejorar es relativo.",
+  p68:"Croacia vs Ghana: Modric en su último Mundial tratando de alcanzar la gloria que le falta. Ghana con sus jóvenes talentos intentando hacer lo que hicieron sus mayores en 2010. El partido más cargado de nostalgia de la jornada.",
+  p69:"Colombia vs Portugal: Luis Díaz contra Bruno Fernandes. Dos selecciones que juegan bien pero que tienen demasiado ego colectivo. El partido más bonito del grupo en papel. En la práctica habrá mucho tiro fuera.",
+  p70:"RD Congo vs Uzbekistán: el partido que nadie pone en el televisor del bar pero que acaba siendo el más loco de la jornada. Siempre hay uno así. Este es ese partido.",
+  p71:"Argelia vs Austria: los argelinos en busca de la hazaña. Los austríacos buscando confirmar que son más que Suiza con peor marketing. Partido equilibrado donde el primero en marcar tendrá ventaja psicológica enorme.",
+  p72:"Jordania vs Argentina: el David más improbable contra el Goliat campeón. Jordania sabe que no puede ganar. Argentina sabe que tiene que ganar. El fútbol sabe que puede pasar cualquier cosa. Y nosotros sabemos que si Argentina pierde aquí, el mundo se para.",
+  p73:"Dieciseisavos: el torneo de verdad empieza aquí. Adiós a los equipos que vinieron de turismo. Bienvenidos al fútbol donde cada error cuesta una eliminación y un vuelo de vuelta a casa con cara de pena.",
+  p74:"Octavos en construcción: los clasificados se conocerán durante el torneo. Guarda las fuerzas para este partido.",
+  p75:"Octavos en construcción: los clasificados se conocerán durante el torneo. Guarda las fuerzas para este partido.",
+  p76:"Octavos en construcción: los clasificados se conocerán durante el torneo. El sorteo de grupos ya hizo suficiente daño.",
+  p77:"Octavos en construcción: sobrevivir a la fase de grupos es el primer logro. Ganar aquí sería el segundo.",
+  p78:"Octavos en construcción: a estas alturas ya solo quedan los buenos. O los que han tenido suerte. O las dos cosas.",
+  p79:"Octavos en construcción: el favorito del grupo tiene que demostrar que no era solo suerte.",
+  p80:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p81:"Octavos en construcción: a este punto del torneo ya todos los partidos son finales pequeñas.",
+  p82:"Octavos en construcción: el que pase aquí se meterá en cuartos. Y en cuartos la vida cambia.",
+  p83:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p84:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p85:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p86:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p87:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p88:"Octavos en construcción: los clasificados se conocerán durante el torneo.",
+  p89:"Octavos de Final: aquí ya no hay segundas oportunidades. El que pierde hace las maletas.",
+  p90:"Octavos de Final: noventa minutos para seguir soñando o para empezar a llorar.",
+  p91:"Octavos de Final: el fútbol en estado puro. Eliminatoria directa, sin red.",
+  p92:"Octavos de Final: el que pase aquí ya puede decir que llegó a cuartos del Mundial. Eso es para siempre.",
+  p93:"Octavos de Final: a estas alturas del torneo ya todos los entrenadores son genios o idiotas según el resultado.",
+  p94:"Octavos de Final: el árbitro decidirá más cosas de las que debería. Es la ley del fútbol.",
+  p95:"Octavos de Final: partido de penaltis garantizado. Lo sabemos todos. Los jugadores también.",
+  p96:"Octavos de Final: el último partido antes de cuartos. Los nervios ya son físicamente palpables.",
+  p97:"Cuartos de Final: los ocho mejores. Solo cuatro pasarán. El sueño se vuelve tangible y el miedo también.",
+  p98:"Cuartos de Final: aquí los entrenadores se vuelven locos con la pizarra y los jugadores se vuelven locos con el árbitro.",
+  p99:"Cuartos de Final: si hay prórroga aquí, alguien va a desfallecer en el campo. Y no será bonito pero será épico.",
+  p100:"Cuartos de Final: el último partido antes de semifinales. El que llegue aquí ya es grande. El que pase, histórico.",
+  p101:"Semifinal: solo quedan cuatro. El mundo entero está mirando. Esto es lo más cerca del cielo que puede estar un futbolista sin ganar el Mundial.",
+  p102:"Semifinal: la otra semifinal. El perdedor de aquí llorará más que en ningún partido de su vida. El ganador intentará no llorar pero llorará igual.",
+  p103:"Tercer y Cuarto Puesto: el partido que nadie quiere jugar. Los dos equipos llegan destrozados emocionalmente de las semis. Es el partido más triste del torneo porque todos los que juegan prefieren no estar aquí. Pero el bronce mola.",
+  p104:"🏆 GRAN FINAL: el partido más importante del mundo cada cuatro años. Aquí se escribe la historia. Aquí se hacen leyendas. Aquí se rompen corazones de medio planeta. Y aquí nosotros, desde nuestro sofá, con nuestras apuestas, viviremos el mejor momento del torneo. Sea quien sea el que gane, este momento no se olvida nunca.",
+};
+
+// =============================================
 // RENDER PARTIDOS
 // =============================================
 function renderMatch(m){
@@ -517,17 +639,59 @@ function renderMatch(m){
     let badge='';if(pts!==null){const cl=pts===3?'pts-3':pts===1?'pts-1':'pts-0';badge=`<span class="pred-points-badge ${cl}">${pts}pt${pts!==1?'s':''}</span>`;}
     return`<div class="pronostico-card ${hasPred?'has-pred':locked?'locked-card':''}"><div class="pred-player-name">${player.name} ${badge}</div><div class="pred-input-row">${scoreDisp}${action}</div></div>`;
   }).join('');
+  // Curiosidad
+  const curText=CURIOSIDADES[m.id]||'Datos curiosos próximamente...';
+  const curiosidadHTML=`<div class="curiosidad"><span class="curiosidad-icon">💡</span>${curText}</div>`;
+
+  // Estadística de pronósticos
+  const preds=PLAYERS.map(p=>(STATE.predictions[m.id]||{})[p.id]).filter(Boolean);
+  let statsHTML='';
+  if(preds.length>0){
+    let homeW=0,draw=0,awayW=0;
+    preds.forEach(pred=>{
+      if(pred.home>pred.away)homeW++;
+      else if(pred.home<pred.away)awayW++;
+      else draw++;
+    });
+    const total=preds.length;
+    const pctH=Math.round(homeW/total*100);
+    const pctD=Math.round(draw/total*100);
+    const pctA=Math.round(awayW/total*100);
+    statsHTML=`<div class="stats-pron">
+      <div class="stats-pron-title">📊 Pronósticos del grupo (${total}/4)</div>
+      <div class="stats-bar-wrap">
+        <div class="stats-bar-row">
+          <div class="stats-bar-label">${m.home.split(' ')[0]}</div>
+          <div class="stats-bar-track"><div class="stats-bar-fill home" style="width:${pctH}%"></div></div>
+          <div class="stats-bar-count">${homeW}</div>
+        </div>
+        <div class="stats-bar-row">
+          <div class="stats-bar-label">Empate</div>
+          <div class="stats-bar-track"><div class="stats-bar-fill draw" style="width:${pctD}%"></div></div>
+          <div class="stats-bar-count">${draw}</div>
+        </div>
+        <div class="stats-bar-row">
+          <div class="stats-bar-label">${(m.away||'Rival').split(' ')[0]}</div>
+          <div class="stats-bar-track"><div class="stats-bar-fill away" style="width:${pctA}%"></div></div>
+          <div class="stats-bar-count">${awayW}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   return`<div class="partido" id="match-${m.id}">
     <div class="partido-top">
       <div class="partido-equipos">${m.home} ${awayLbl}</div>
       <div class="partido-meta"><span class="partido-hora ${locked?'locked':''}">⏰ ${m.time}h (España)</span>${m.group?`<span class="partido-grupo">${m.group}</span>`:''}${badge}</div>
     </div>
     <div class="partido-estadio">🏟️ ${m.stadium}</div>
+    ${curiosidadHTML}
     <div class="countdown-wrap" id="${cdElId}"></div>
     <div class="pronosticos-grid">${predsHTML}</div>
+    ${statsHTML}
     <div class="resultado-real-section">
       <span class="resultado-real-label">Resultado real:</span>
-      ${hasResult?`<span class="resultado-real-score">${result.home} - ${result.away}</span>`:`<span class="resultado-real-score empty">Pendiente</span>`}
+      ${hasResult?`<span class="resultado-real-score">${result.home} - ${result.away}</span><span style="font-size:.6rem;color:${result.manual?'#2ecc40':'var(--gold)'};margin-left:4px;">${result.manual?'✍️ Manual':'🤖 Auto'}</span>`:`<span class="resultado-real-score empty">Pendiente</span>`}
       <button class="btn-set-result" onclick="openResultModal('${m.id}')">⚽ ${hasResult?'Corregir':'Añadir resultado'}</button>
     </div>
   </div>`;
@@ -662,7 +826,99 @@ function renderDeudas(){
 }
 
 window.renderDeudas=renderDeudas;
+
 // =============================================
+// AUTO-ACTUALIZACIÓN DE RESULTADOS (API gratuita)
+// La API oficial: worldcup2026api.com (sin clave)
+// Tu resultado manual SIEMPRE prevalece sobre el automático
+// =============================================
+
+// Mapa de nombres de equipos de la API → nuestros nombres
+const TEAM_MAP={
+  'Mexico':'México','South Africa':'Sudáfrica','Czech Republic':'Rep. Checa',
+  'Korea Republic':'Corea del Sur','Bosnia and Herzegovina':'Bosnia-Herzegovina',
+  'United States':'Estados Unidos','Netherlands':'Países Bajos',
+  'Ivory Coast':'Costa de Marfil','Saudi Arabia':'Arabia Saudita',
+  'New Zealand':'Nueva Zelanda','France':'Francia','Iraq':'Irak',
+  'Norway':'Noruega','Argentina':'Argentina','Algeria':'Argelia',
+  'Austria':'Austria','Jordan':'Jordania','Portugal':'Portugal',
+  'DR Congo':'RD Congo','England':'Inglaterra','Croatia':'Croacia',
+  'Ghana':'Ghana','Panama':'Panamá','Uzbekistan':'Uzbekistán',
+  'Colombia':'Colombia','Switzerland':'Suiza','Canada':'Canadá',
+  'Qatar':'Catar','Brazil':'Brasil','Morocco':'Marruecos',
+  'Haiti':'Haití','Scotland':'Escocia','Australia':'Australia',
+  'Turkey':'Turquía','Germany':'Alemania','Curacao':'Curazao',
+  'Japan':'Japón','Sweden':'Suecia','Tunisia':'Túnez',
+  'Spain':'España','Cape Verde':'Cabo Verde','Belgium':'Bélgica',
+  'Egypt':'Egipto','Iran':'Irán','Senegal':'Senegal',
+  'Ecuador':'Ecuador','Uruguay':'Uruguay','Serbia':'Serbia',
+  'Paraguay':'Paraguay','Cameroon':'Camerún','Ukraine':'Ucrania',
+  'Poland':'Polonia','Romania':'Rumanía','Venezuela':'Venezuela',
+};
+
+function normalizeName(n){return TEAM_MAP[n]||n;}
+
+async function fetchAutoResults(){
+  try{
+    // API gratuita sin clave del Mundial 2026
+    const res=await fetch('https://worldcup2026.p.rapidapi.com/matches',{
+      headers:{
+        'x-rapidapi-host':'worldcup2026.p.rapidapi.com'
+      }
+    });
+    // Si falla, intentar con la API alternativa
+    throw new Error('try_alt');
+  }catch(e){
+    try{
+      // API alternativa: openfootball (actualiza cada ~1h)
+      const res=await fetch('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json');
+      if(!res.ok) return;
+      const data=await res.json();
+      let updated=false;
+      (data.matches||[]).forEach(m=>{
+        // Solo procesar partidos con resultado
+        if(m.score===undefined||m.score===null) return;
+        const score=m.score;
+        if(!score||score.ft===undefined) return;
+        const [gh,ga]=score.ft;
+        if(gh===undefined||ga===undefined) return;
+
+        const homeName=normalizeName(m.team1&&m.team1.name?m.team1.name:(m.team1||''));
+        const awayName=normalizeName(m.team2&&m.team2.name?m.team2.name:(m.team2||''));
+
+        // Buscar el partido en nuestro calendario
+        const match=SCHEDULE.find(s=>
+          s.home===homeName&&s.away===awayName
+        );
+        if(!match) return;
+
+        // Solo actualizar si NO hay resultado manual puesto
+        if(STATE.results[match.id]&&STATE.results[match.id].manual===true) return;
+
+        // Actualizar resultado automático
+        const current=STATE.results[match.id]||{};
+        if(current.home!==gh||current.away!==ga){
+          STATE.results[match.id]={home:gh,away:ga,manual:false,auto:true};
+          updated=true;
+        }
+      });
+      if(updated){
+        await saveToFirebase();
+        showToast('🤖 Resultados actualizados automáticamente');
+      }
+    }catch(err){
+      // API no disponible, sin problema — el manual sigue funcionando
+      console.log('Auto-update no disponible:',err);
+    }
+  }
+}
+
+// Ejecutar al cargar y cada 5 minutos
+setTimeout(fetchAutoResults, 3000);
+setInterval(fetchAutoResults, 5*60*1000);
+
+// =============================================
+
 const dbRef=db.ref('mundial');
 dbRef.on('value',snapshot=>{
   const data=snapshot.val()||{};
@@ -746,7 +1002,7 @@ document.getElementById('resultConfirm').onclick=async function(){
   if(document.getElementById('resultCode').value!==ADMIN_CODE){document.getElementById('resultCode').classList.add('error');document.getElementById('resultCodeError').classList.add('show');return;}
   const h=parseInt(document.getElementById('resultHome').value);const a=parseInt(document.getElementById('resultAway').value);
   if(isNaN(h)||isNaN(a)||h<0||a<0){showToast('Introduce un resultado válido',true);return;}
-  STATE.results[curResMatchId]={home:h,away:a};
+  STATE.results[curResMatchId]={home:h,away:a,manual:true};
   closeResultModal();
   await saveToFirebase();
   showToast(`✅ Resultado guardado: ${h}-${a}`);
